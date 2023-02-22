@@ -24,16 +24,22 @@ function Neshan() {
     this.y2 = 100;
 
     window.addEventListener("touchstart",(e)=> {
-        this.d = true;
-        this.set(e);
-        game.pelota.t = false;
+        if(game.jugar) {
+            this.d = true;
+            this.set(e);
+            game.pelota.t = false;
+        }
     })
     window.addEventListener("touchmove",(e)=> {
+        if(game.jugar) {
         this.set(e);
+        }
     })
     window.addEventListener("touchend",(e)=> {
+        if(game.jugar) {
         this.d = false;
         this.tira(e);
+        }
     })
 }
 Neshan.prototype.set = function(e) {
@@ -51,8 +57,8 @@ Neshan.prototype.tira = function(e) {
     let x2 = porsentage(game.pelota.data.x);
     let y2 = porsentage(game.pelota.data.y);
     
-    game.pelota.data.sx = (x1 - x2)/100;
-    game.pelota.data.sy = (y1 - y2)/100;
+    game.pelota.data.sx = (x1 - x2)/200;
+    game.pelota.data.sy = (y1 - y2)/200;
 }
 Neshan.prototype.draw = function() {
     if(this.d) {
@@ -62,6 +68,10 @@ Neshan.prototype.draw = function() {
         canvas.ctx.moveTo(this.x1,this.y1);
         canvas.ctx.lineTo(this.x2,this.y2);
         canvas.ctx.stroke();
+        canvas.ctx.fillStyle = "#F55050";
+        canvas.ctx.beginPath();
+        canvas.ctx.arc(this.x2, this.y2, porsentage(2), 0, 2 * Math.PI);
+        canvas.ctx.fill();
     }
 }
 Neshan.prototype.update = function() {
@@ -135,16 +145,16 @@ Pared.prototype.update = function() {
         game.pelota.falta(1);
         switch (this.data.l) {
             case "l":
-                game.pelota.data.sx = ++game.pelota.data.sx;
+                game.pelota.data.sx = Math.abs(game.pelota.data.sx);
                 break;
             case "r":
-                game.pelota.data.sx = -game.pelota.data.sx;
+                game.pelota.data.sx = game.pelota.data.sx*-1;
                 break;
             case "t":
-                game.pelota.data.sy = ++game.pelota.data.sy;
+                game.pelota.data.sy = Math.abs(game.pelota.data.sy);
                 break;
             case "b":
-                game.pelota.data.sy = -game.pelota.data.sy;
+                game.pelota.data.sy = game.pelota.data.sy*-1;
                 break;    
             case "f":
                 if(game.pelota.data.n < 1) {
@@ -159,15 +169,62 @@ Pared.prototype.update = function() {
 }
 
 
-function Game(niveles) {
-    this.numNivel = 1;
+function Game(niveles,nivel) {
+    this.jugar = true;
+    this.numNivel = nivel;
     this.niveles = niveles;
     this.neshan = new Neshan();
     this.paredes = [];
     this.pelota = {};
     this.g = false;
     this.f = false;
+    this.button = {
+        x:35,
+        y:60,
+        w:30,
+        h:8,
+    }
+
+    window.addEventListener("touchstart",(e)=> {
+        let tx = e.targetTouches[0].pageX - canvas.position().x;
+        let ty = e.targetTouches[0].pageY - canvas.position().y;
+        let {x,y,w,h} = this.button;
+
+        if(tx > porsentage(x) && tx < porsentage(x)+porsentage(w) && ty > porsentage(y) && ty < porsentage(y)+porsentage(h)) {
+            if(this.g) {
+                if(this.numNivel == this.niveles.length) {
+                    this.g = false;
+                    this.numNivel = 1;
+                    game.crearNivel();
+                    setTimeout(()=> {
+                    this.jugar = true;
+                    },100)
+                }
+                if(this.numNivel < this.niveles.length) {
+                    this.g = false;
+                    this.numNivel += 1;
+                    game.crearNivel();
+                    setTimeout(()=> {
+                    this.jugar = true;
+                    },100)
+                }
+            }
+            if(this.f) {
+                this.f = false;
+                game.crearNivel();
+                setTimeout(()=> {
+                    this.jugar = true;
+                },100)
+
+            }
+        }
+        
+        
+    })
+
 }
+
+
 
 
 
@@ -175,10 +232,27 @@ Game.prototype.draw = function() {
     if(this.g) {
         canvas.ctx.font = porsentage(10)+"px Arial";
         canvas.ctx.strokeText(`Has ganado!!!`, porsentage(20), porsentage(50));
+        let {x,y,w,h} = this.button;
+        canvas.ctx.fillStyle = "#F48484";
+        canvas.ctx.fillRect(porsentage(x),porsentage(y),porsentage(w),porsentage(h));
+        canvas.ctx.fillStyle = "#ffffff";
+        canvas.ctx.font = porsentage(w/(h*1.3))+"px Arial";
+        if(this.numNivel < this.niveles.length) {
+            canvas.ctx.fillText("Sigiente nivel",porsentage(x+h/1.3),porsentage(y+(h/1.5)));
+        }else {
+            canvas.ctx.fillText("Volver a primer nivel",porsentage(x+h/4),porsentage(y+(h/1.5)));
+        }
     }
     if(this.f) {
         canvas.ctx.font = porsentage(10)+"px Arial";
         canvas.ctx.strokeText(`Has fayado!!!`, porsentage(20), porsentage(50));
+        let {x,y,w,h} = this.button;
+        canvas.ctx.fillStyle = "#F48484";
+        canvas.ctx.fillRect(porsentage(x),porsentage(y),porsentage(w),porsentage(h));
+        canvas.ctx.fillStyle = "#ffffff";
+        canvas.ctx.font = porsentage(w/(h*1.2))+"px Arial";
+        canvas.ctx.fillText("Otra vez",porsentage(x+h),porsentage(y+(h/1.5)));
+       
     }
     this.paredes.forEach(p => {
         p.draw();
@@ -199,9 +273,11 @@ Game.prototype.update = function() {
 
 
 Game.prototype.ganar = function() {
+    this.jugar = false;
     this.g = true;
 }
 Game.prototype.fayar = function() {
+    this.jugar = false;
     this.f = true;
 }
 Game.prototype.crearNivel = function() {
@@ -210,7 +286,7 @@ Game.prototype.crearNivel = function() {
     this.niveles[this.numNivel-1].paredes.forEach((p,index) => {
         let permiso;
         let colors = {c1:"#E8D2A6",c2:"#86A3B8"};
-        if(index < this.niveles[this.numNivel-1].paredes.length - 3){
+        if(index < this.niveles[this.numNivel-1].paredes.length - 2){
             permiso = true;
         }else {
             permiso = false;
@@ -246,7 +322,8 @@ function descargarNiveles() {
     http.open("POST","/descargar_niveles",true);
     http.onreadystatechange = function() {
         if(http.status == 200 && http.readyState == 4) {
-            game = new Game(JSON.parse(http.responseText));
+            game = new Game(JSON.parse(http.responseText),1);
+           
             game.crearNivel();
             anim();
            
