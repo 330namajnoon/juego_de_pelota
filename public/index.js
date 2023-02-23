@@ -22,6 +22,12 @@ function Neshan() {
     this.y1 = 0;
     this.x2 = 100;
     this.y2 = 100;
+    this.neshan = {
+        p: false,
+        x:0,
+        y:0,
+        r:2
+    }
 
     window.addEventListener("touchstart",(e)=> {
         if(game.jugar) {
@@ -40,6 +46,7 @@ function Neshan() {
         this.d = false;
         this.tira(e);
         game.jugar = false;
+        game.pelota.permiso = true;
         }
     })
 }
@@ -50,7 +57,9 @@ Neshan.prototype.set = function(e) {
     this.y1 = porsentage(game.pelota.data.y);
     this.x2 = x;
     this.y2 = y;
-   
+
+    this.neshan.x = this.x1 + ((this.x1 - this.x2)/200)*100;
+    this.neshan.y = this.y1 + ((this.y1 - this.y2)/200)*100;
 }
 Neshan.prototype.tira = function(e) {
     let x1 = e.changedTouches[0].pageX - canvas.position().x;
@@ -58,12 +67,15 @@ Neshan.prototype.tira = function(e) {
     let x2 = porsentage(game.pelota.data.x);
     let y2 = porsentage(game.pelota.data.y);
     
-    game.pelota.data.sx = (x1 - x2)/200;
-    game.pelota.data.sy = (y1 - y2)/200;
+    game.pelota.data.sx = (x1 - x2)/200 < 0 ? Math.abs((x1 - x2)/200) : ((x1 - x2)/200)*-1;
+    game.pelota.data.sy = (y1 - y2)/200 < 0 ? Math.abs((y1 - y2)/200) : ((y1 - y2)/200)*-1;
 }
 Neshan.prototype.draw = function() {
     if(this.d) {
-       
+        canvas.ctx.fillStyle = "#F55050";
+        canvas.ctx.beginPath();
+        canvas.ctx.arc(this.neshan.x, this.neshan.y, porsentage(this.neshan.r), 0, 2 * Math.PI);
+        canvas.ctx.fill();
         canvas.ctx.lineWidth = 2;
         canvas.ctx.strokeStyle = "#F48484";
         canvas.ctx.moveTo(this.x1,this.y1);
@@ -82,16 +94,22 @@ Neshan.prototype.update = function() {
 function Pelota(x=0,y=0,r=10,n= 1,sx=0,sy=0) {
     this.data = {x,y,r,n,sx,sy};
     this.t = true;
+    this.lineas = [];
+    this.permiso = false;
 }
 Pelota.prototype.draw = function() {
     let {x,y,r,n} = this.data;
-    canvas.ctx.fillStyle = "#F55050";
-    canvas.ctx.strokeStyle = "#00000000";
-    if(game.frame % 10 == 0 ) {
-        canvas.ctx.beginPath();
-        canvas.ctx.arc(porsentage(x), porsentage(y), porsentage(r), 0, 2 * Math.PI);
+    canvas.ctx.strokeStyle = "#F16767";
+    if(this.lineas.length > 0) {
+        canvas.ctx.moveTo(porsentage(this.lineas[0].x),porsentage(this.lineas[0].y));
+        this.lineas.forEach(e => {
+            canvas.ctx.lineTo(porsentage(e.x),porsentage(e.y));
+        })
         canvas.ctx.stroke();
     }
+    canvas.ctx.fillStyle = "#F55050";
+    canvas.ctx.strokeStyle = "#00000000";
+    
     canvas.ctx.beginPath();
     canvas.ctx.arc(porsentage(x), porsentage(y), porsentage(r), 0, 2 * Math.PI);
     canvas.ctx.fill();
@@ -108,6 +126,16 @@ Pelota.prototype.draw = function() {
 Pelota.prototype.update = function() {
     this.data.x += this.data.sx;
     this.data.y += this.data.sy;
+    if(this.permiso)this.lineas.push({x:this.data.x,y:this.data.y});
+    if(this.lineas.length > 0 && game.frame % 2 == 0 ) {
+        let nl = [];
+        this.lineas.forEach((e,index)=> {
+            if(index > 0) {
+                nl.push(e);
+            }
+        })
+        this.lineas = nl;
+    }
 }
 Pelota.prototype.falta = function(f = 0) {
     if(!this.t) {
@@ -175,6 +203,7 @@ Pared.prototype.update = function() {
     let pr = game.pelota.data.r;
     let {x,y,w,h} = this.data;
 
+    
     if(px + pr >= x && px-pr <= x+w && py + pr >= y && py - pr <= y+h) {
       
         game.pelota.falta(1);
@@ -369,7 +398,7 @@ function descargarNiveles() {
     http.open("POST","/descargar_niveles",true);
     http.onreadystatechange = function() {
         if(http.status == 200 && http.readyState == 4) {
-            play(JSON.parse(http.responseText),4)
+            play(JSON.parse(http.responseText),1)
             anim();
            
         }
