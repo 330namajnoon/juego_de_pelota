@@ -37,12 +37,12 @@ function Neshan() {
         }
     })
     window.addEventListener("touchmove",(e)=> {
-        if(game.jugar) {
+        if(game.jugar&& this.d) {
         this.set(e);
         }
     })
     window.addEventListener("touchend",(e)=> {
-        if(game.jugar) {
+        if(game.jugar && this.d) {
         this.d = false;
         this.tira(e);
         game.jugar = false;
